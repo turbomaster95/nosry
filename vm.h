@@ -37,6 +37,9 @@ enum VMOpcodes {
   OP_SHL,
   OP_PUSH,
   OP_POP,
+  OP_CALL,
+  OP_CALLR, // relative
+  OP_RET,
   OP_HALT = 0xFF
 };
 
@@ -71,8 +74,10 @@ typedef struct Memory {
 typedef struct VM {
   u32 regs[MAX_REGS];
   u32 stack[MAX_STACK_SIZE];
+  u32 call_stack[MAX_STACK_SIZE];
   u32 PC;
-  u16 SP;
+  u32 SP;
+  u32 CSP;
   Inst current_inst;
   int is_running;  
 } VM;
@@ -83,9 +88,11 @@ static inline void VM_reset(VM *vm, Memory *rom) {
 
   vm->PC = 0x0;
   vm->SP = MAX_STACK_SIZE;
+  vm->CSP = MAX_STACK_SIZE;
   vm->is_running = 1;
   for (int i = 0; i < MAX_REGS; i++) vm->regs[i] = 0;
   for (int i = 0; i < MAX_STACK_SIZE; i++) vm->stack[i] = 0;
+  for (int i = 0; i < MAX_STACK_SIZE; i++) vm->call_stack[i] = 0;
   vm->current_inst = (Inst){0};
 
   for (int i = 0; i < MEM_SIZE; i++) rom->mem[i] = (Inst){0};
@@ -95,8 +102,7 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *r
   if (!vm || !program || !progsize) return -1;
   if (!rom) return -1;
   if (progsize > MEM_SIZE) return -1;
-
-  size_t size = progsize;
+  
   memcpy(rom->mem, program, sizeof(Inst) * progsize);
 
   while (vm->is_running && vm->PC < MEM_SIZE) {
@@ -199,7 +205,43 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *r
         }
         vm->PC++;
         break;
-                
+
+      case OP_CALL:
+        if (vm->CSP > 0) {
+          vm->CSP--;
+          vm->call_stack[vm->CSP] = vm->PC + 1;
+          vm->PC = (u32)vm->current_inst.imm;
+        } else {
+          printf("Error: Call Stack Overflow\n");
+          vm->is_running = 0;
+          return -1;
+        }
+        break;
+
+      case OP_CALLR:
+        if (vm->CSP > 0) {
+          u32 next_pc = vm->PC + 1;
+          vm->CSP--;
+          vm->call_stack[vm->CSP] = next_pc;
+          vm->PC = (u32)((i32)next_pc + vm->current_inst.offset);
+        } else {
+          printf("Error: Call Stack Overflow\n");
+          vm->is_running = 0;
+          return -1;
+        }
+        break;
+
+      case OP_RET:
+        if (vm->CSP < MAX_STACK_SIZE) {
+          vm->PC = vm->call_stack[vm->CSP];
+          vm->CSP++;
+        } else {
+          printf("Error: Call Stack Underflow\n");
+          vm->is_running = 0;
+          return -1;
+        }
+        break;
+        
       case OP_HALT:
         vm->PC++;
         vm->is_running = 0;
@@ -210,6 +252,10 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *r
         printf("Stack (SP = %u):\n", vm->SP);
         for (int i = vm->SP; i < MAX_STACK_SIZE; i++) {
           printf("  [%d]: %u\n", i, vm->stack[i]);
+        }
+        printf("Call Stack (CSP = %u):\n", vm->CSP);
+        for (int i = vm->CSP; i < MAX_STACK_SIZE; i++) {
+          printf("  [%d]: %u\n", i, vm->call_stack[i]);
         }
         break;
         
