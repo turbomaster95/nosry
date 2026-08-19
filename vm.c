@@ -1,74 +1,66 @@
 #include "vm.h"
 
-#define INST_NOP() \
-    ((Inst){ .opcode = OP_NOP })
-    
-#define INST_MOV(r_dst, immv) \
-    ((Inst){ .opcode = OP_MOV, .dest = (r_dst), .imm = (immv) })
+static void custom_syscalls(VM *vm, Memory *mem, u32 sys_code) {
+    switch (sys_code) {
+        case 1: // PUTCHAR
+            putchar((char)vm->regs[0]);
+            break;
 
-#define INST_ADD(r_dst, r_src) \
-    ((Inst){ .opcode = OP_ADD, .dest = (r_dst), .src = (r_src) })
-    
-#define INST_ADDI(r_dst, immv) \
-    ((Inst){ .opcode = OP_ADDI, .dest = (r_dst), .imm = (immv) })
+        case 2: // PUTS
+            if (vm->regs[0] < RAM_SIZE) {
+                printf("%s", (char *)&mem->ram[vm->regs[0]]);
+            }
+            break;
 
-#define INST_SUB(r_dst, r_src) \
-    ((Inst){ .opcode = OP_SUB, .dest = (r_dst), .src = (r_src) })
+        case 3: // Custom SYS_WRITE_HEX (Prints R0 as Hexadecimal)
+            printf("0x%08X\n", vm->regs[0]);
+            break;
 
-#define INST_SUBI(r_dst, immv) \
-    ((Inst){ .opcode = OP_SUBI, .dest = (r_dst), .imm = (immv) })
+        default:
+            printf("Fault: Unhandled Extended Syscall %u\n", sys_code);
+            vm->is_running = 0;
+            break;
+    }
+}
 
-#define INST_AND(r_dst, r_src) \
-    ((Inst){ .opcode = OP_AND, .dest = (r_dst), .src = (r_src) })
+int main(int argc, char **argv) {
+    VM vm;
+    Memory mem;
+    VM_reset(&vm, &mem);
 
-#define INST_SHR(r_dst, offset) \
-    ((Inst){ .opcode = OP_SHR, .dest = (r_dst), .offset = (offset) })
+    vm.syscall_handler = custom_syscalls;
 
-#define INST_SHL(r_dst, offset) \
-    ((Inst){ .opcode = OP_SHL, .dest = (r_dst), .offset = (offset) })
+    u32 preferred_data_vaddr = 0x10;
 
-#define INST_PUSH(r_src) \
-    ((Inst){ .opcode = OP_PUSH, .src = (r_src) })
+    if (argc > 1 && strcmp(argv[1], "-o") != 0) {
+        if (VM_run_file(argv[1], &mem, &vm, preferred_data_vaddr) == 0) {
+            return 0;
+        }
+        printf("Failed to load binary file: %s\n", argv[1]);
+        return -1;
+    }
 
-#define INST_POP(r_dst) \
-    ((Inst){ .opcode = OP_POP, .dest = (r_dst) })
+    const char data_section[] = "Hello VM";
 
-#define INST_CALL(imm_addr) \
-    ((Inst){ .opcode = OP_CALL, .imm = (imm_addr) })
+    Inst program[] = {
+        INST_MOV(0, preferred_data_vaddr),  // R0 points to 0x10
+        INST_LOAD(1, 0, 0),                 // Load 4 bytes from RAM[0x10] into R1
+        INST_MOV(2, 42),
+        INST_HALT()
+    };
 
-#define INST_CALLR(off_addr) \
-    ((Inst){ .opcode = OP_CALLR, .offset = (off_addr) })
+    if (argc > 2 && strcmp(argv[1], "-o") == 0) {
+        FILE *f = fopen(argv[2], "wb");
+        if (f) {
+            VM_export_stream(f, program, COUNTOF(program), 
+                               data_section, sizeof(data_section));
+            fclose(f);
+            printf("Successfully exported %s\n", argv[2]);
+        }
+        return 0;
+    }
 
-#define INST_RET() \
-    ((Inst){ .opcode = OP_RET })
-     
-#define INST_HALT() \
-    ((Inst){ .opcode = OP_HALT })
-
-int main() {
-  VM vm;
-  Memory mem;
-  
-  VM_reset(&vm, &mem);
-
-  enum {
-    L_MAIN = 0,
-    L_SUBROUTINE = L_MAIN + 6,
-    L_END = L_SUBROUTINE + 2 
-  };
-
-  struct Inst program[] = {
-    [L_MAIN]       = INST_MOV(0, 10),
-                     INST_MOV(1, 10),
-                     INST_ADD(0, 1),
-                     INST_CALL(L_SUBROUTINE),
-                     INST_MOV(2, 19),
-                     INST_HALT(),
-
-    [L_SUBROUTINE] = INST_MOV(3, 42),
-                     INST_RET()
-  };
-
-  
-  VM_run(&vm, program, COUNTOF(program), &mem);
+    memcpy(mem.ram + preferred_data_vaddr, data_section, sizeof(data_section));
+    VM_run(&vm, program, COUNTOF(program), &mem);
+    return 0;
 }
