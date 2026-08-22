@@ -7,7 +7,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "glue.h"
+#ifdef NOSRY_GLUE_GLOBAL
+    #include <vmglue.h>
+#else
+    #include "glue.h"
+#endif
 
 #define INST_NOP()                    ((Inst){ .opcode = OP_NOP })
 #define INST_MOV(r_dst, immv)         ((Inst){ .opcode = OP_MOV, .dest = (r_dst), .imm = (immv) })
