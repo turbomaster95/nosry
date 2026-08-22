@@ -478,10 +478,10 @@ static inline int VM_export_stream(VM *vm, FILE *f, const Inst *program, size_t 
     if (fwrite(&header, sizeof(VMHeader), 1, f) != 1) return -1;
 
     fwrite(&vm->str_table.count, sizeof(uint32_t), 1, f);
-    for (uint32_t i = 0; i < g_str_table.count; i++) {
-        uint32_t len = (uint32_t)strlen(g_str_table.strings[i]);
+    for (uint32_t i = 0; i < vm->str_table.count; i++) {
+        uint32_t len = (uint32_t)strlen(vm->str_table.strings[i]);
         fwrite(&len, sizeof(uint32_t), 1, f);
-        fwrite(g_str_table.strings[i], sizeof(char), len, f);
+        fwrite(vm->str_table.strings[i], sizeof(char), len, f);
     }
 
     if (fwrite(program, sizeof(Inst), prog_len, f) != prog_len) return -1;
@@ -489,6 +489,8 @@ static inline int VM_export_stream(VM *vm, FILE *f, const Inst *program, size_t 
 
     return 0;
 }
+
+static inline int VM_register_str(VM *vm, const char *str);
 
 static inline int VM_import_stream(VM* vm, FILE *f, Memory *mem, size_t *out_prog_len, u32 actual_data_vaddr) {
     if (!f || !mem) return -1;
@@ -524,7 +526,7 @@ static inline int VM_run_file(const char *filename, Memory *mem, VM *vm, u32 loa
     if (!f) return -1;
 
     size_t prog_len = 0;
-    if (VM_import_stream(f, mem, &prog_len, load_ram_vaddr) != 0) {
+    if (VM_import_stream(vm, f, mem, &prog_len, load_ram_vaddr) != 0) {
         fclose(f);
         return -1;
     }

@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
     if (argc > 2 && strcmp(argv[1], "-o") == 0) {
         FILE *f = fopen(argv[2], "wb");
         if (f) {
-            VM_export_stream(vm, f, program, COUNTOF(program), 
+            VM_export_stream(&vm, f, program, COUNTOF(program), 
                                hello_msg, sizeof(hello_msg));
             fclose(f);
             printf("Exported payload binary to %s\n", argv[2]);
