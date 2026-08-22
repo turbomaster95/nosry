@@ -72,7 +72,7 @@ static inline VerifierReport VM_verify(const Inst *program, size_t prog_len) {
                 break;
 
             case OP_JMPO: case OP_CALLR: {
-                int64_t target = (int64_t)i + 1 + inst.imm;
+                i64 target = (i64)i + 1 + inst.imm;
                 if (target < 0 || (size_t)target >= prog_len) {
                     return (VerifierReport){ false, i, "Relative jump/call target out of ROM bounds" };
                 }

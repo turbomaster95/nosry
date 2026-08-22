@@ -158,7 +158,7 @@ static inline const char* VM_get_string(VM* vm, u32 id) {
 }
 
 static inline void VM_clear_strings(VM* vm) {
-    for (uint32_t i = 0; i < vm->str_table.count; i++) {
+    for (u32 i = 0; i < vm->str_table.count; i++) {
         vm->str_table.strings[i] = NULL;
     }
     vm->str_table.count = 0;
@@ -500,10 +500,10 @@ static inline int VM_export_stream(VM *vm, FILE *f, const Inst *program, size_t 
 
     if (fwrite(&header, sizeof(VMHeader), 1, f) != 1) return -1;
 
-    fwrite(&vm->str_table.count, sizeof(uint32_t), 1, f);
-    for (uint32_t i = 0; i < vm->str_table.count; i++) {
-        uint32_t len = (uint32_t)strlen(vm->str_table.strings[i]);
-        fwrite(&len, sizeof(uint32_t), 1, f);
+    fwrite(&vm->str_table.count, sizeof(u32), 1, f);
+    for (u32 i = 0; i < vm->str_table.count; i++) {
+        u32 len = (u32)strlen(vm->str_table.strings[i]);
+        fwrite(&len, sizeof(u32), 1, f);
         fwrite(vm->str_table.strings[i], sizeof(char), len, f);
     }
 
@@ -520,11 +520,11 @@ static inline int VM_import_stream(VM* vm, FILE *f, Memory *mem, size_t *out_pro
     if (fread(&header, sizeof(VMHeader), 1, f) != 1) return -1;
     if (header.magic != VM_MAGIC) return -1;
 
-    uint32_t str_count = 0;
-    if (fread(&str_count, sizeof(uint32_t), 1, f) == 1) {
-        for (uint32_t i = 0; i < str_count; i++) {
-            uint32_t len = 0;
-            fread(&len, sizeof(uint32_t), 1, f);
+    u32 str_count = 0;
+    if (fread(&str_count, sizeof(u32), 1, f) == 1) {
+        for (u32 i = 0; i < str_count; i++) {
+            u32 len = 0;
+            fread(&len, sizeof(u32), 1, f);
             char *s = malloc(len + 1);
             fread(s, sizeof(char), len, f);
             s[len] = '\0';
