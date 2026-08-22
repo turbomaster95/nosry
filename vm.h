@@ -141,6 +141,25 @@ typedef struct __attribute__((packed)) VMHeader {
 } VMHeader;
 #pragma pack(pop)
 
+static inline int VM_register_str(VM *vm, const char *str) {
+    if (!vm || !str) return -1;
+    if (vm->str_table.count >= MAX_STRING_TABLE_SIZE) return -1;
+    vm->str_table.strings[vm->str_table.count] = strdup(str);
+    return vm->str_table.count++;
+}
+
+static inline const char* VM_get_string(VM* vm, u32 id) {
+    if (id >= vm->str_table.count) return NULL;
+    return vm->str_table.strings[id];
+}
+
+static inline void VM_clear_strings(VM* vm) {
+    for (uint32_t i = 0; i < vm->str_table.count; i++) {
+        vm->str_table.strings[i] = NULL;
+    }
+    vm->str_table.count = 0;
+}
+
 static inline void VM_reset(VM *vm, Memory *mem) {
     if (!vm || !mem) return;
     vm->PC = 0;
@@ -436,7 +455,7 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
                         case 1: putchar((char)vm->regs[0]); break;
                         case 2:
                             if (vm->regs[0] < RAM_SIZE) {
-                                printf("%s", (char *)&mem->ram[vm->regs[0]]);
+                                printf("%s", VM_get_string(vm, vm->regs[0]));
                             }
                             break;
                         default:
@@ -490,8 +509,6 @@ static inline int VM_export_stream(VM *vm, FILE *f, const Inst *program, size_t 
     return 0;
 }
 
-static inline int VM_register_str(VM *vm, const char *str);
-
 static inline int VM_import_stream(VM* vm, FILE *f, Memory *mem, size_t *out_prog_len, u32 actual_data_vaddr) {
     if (!f || !mem) return -1;
 
@@ -533,25 +550,6 @@ static inline int VM_run_file(const char *filename, Memory *mem, VM *vm, u32 loa
     fclose(f);
 
     return VM_run(vm, mem->rom, prog_len, mem);
-}
-
-static inline int VM_register_str(VM *vm, const char *str) {
-    if (!vm || !str) return -1;
-    if (vm->str_table.count >= MAX_STRING_TABLE_SIZE) return -1;
-    vm->str_table.strings[vm->str_table.count] = strdup(str);
-    return vm->str_table.count++;
-}
-
-static inline const char* VM_get_string(VM* vm, u32 id) {
-    if (id >= vm->str_table.count) return NULL;
-    return vm->str_table.strings[id];
-}
-
-static inline void VM_clear_strings(VM* vm) {
-    for (uint32_t i = 0; i < vm->str_table.count; i++) {
-        vm->str_table.strings[i] = NULL;
-    }
-    vm->str_table.count = 0;
 }
 
 static inline void VM_printf(VM *vm, Memory *mem, int reg_base, int arg_count, const char *fmt) {

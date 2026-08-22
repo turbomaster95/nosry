@@ -1,32 +1,24 @@
-#include <stdio.h>
 #include "vm.h"
-#include "verify.h"
+#include <fcntl.h>
 
 int main(void) {
-    Inst invalid_program[] = {
-        INST_MOV(0, 100),
+    Memory mem;
+    VM vm;
+    VM_reset(&vm, &mem);
 
-        { .opcode = OP_MOV, .dest = 255, .src = 0, .imm = 42 },
+    int str_id = VM_register_str(&vm, "Hello, World!\n");
 
-        INST_DIVI(1, 0),
-
-        INST_JMP(9999),
-
-        { .opcode = 0xFE, .dest = 0, .src = 0, .imm = 0 },
-
+    Inst program[] = {
+        INST_MOV(0, str_id),
+        INST_SYS(2),
         INST_HALT()
     };
 
-    printf("=== Testing Static Verifier Guardrails ===\n");
-    
-    VerifierReport report = VM_verify(invalid_program, COUNTOF(invalid_program));
-
-    if (!report.is_valid) {
-        printf("[VERIFIER BLOCKED EXECUTION]\n");
-        printf("Failed at Instruction Index (PC) : %zu\n", report.invalid_pc);
-        printf("Reason                           : %s\n", report.reason);
-    } else {
-        printf("[FAIL] Invalid program bypassed verification unexpectedly!\n");
+    VM_run(&vm, program, COUNTOF(program), &mem);
+    FILE* f = fopen("program.vmo", "wb");
+    if (f) {
+        VM_export_stream(&vm, f, program, COUNTOF(program), NULL, 0);
+        fclose(f);
     }
 
     return 0;
