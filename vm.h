@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "glue.h"
 
@@ -50,6 +51,8 @@
 #define INST_HALT()                   ((Inst){ .opcode = OP_HALT })
 
 #define COUNTOF(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+#define MAX_STRING_TABLE_SIZE 1024
 
 enum VMOpcodes {
     OP_NOP = 0x00,
@@ -107,6 +110,11 @@ typedef struct Memory {
     u8   ram[RAM_SIZE];
 } Memory;
 
+typedef struct StringTable {
+    char *strings[MAX_STRING_TABLE_SIZE];
+    u32 count;
+} StringTable;
+
 struct VM;
 typedef void (*VMSyscallHandler)(struct VM *vm, Memory *mem, u32 sys_code);
 
@@ -121,6 +129,7 @@ typedef struct VM {
     Inst current_inst;
     int is_running;
     VMSyscallHandler syscall_handler;
+    StringTable str_table;
 } VM;
 
 #pragma pack(push, 1)
@@ -140,9 +149,14 @@ static inline void VM_reset(VM *vm, Memory *mem) {
     vm->CSP = MAX_STACK_SIZE;
     vm->is_running = 1;
     vm->syscall_handler = NULL;
+
+    StringTable new_str_tbl = {0};
+    vm->str_table = new_str_tbl;
+
     memset(vm->regs, 0, sizeof(vm->regs));
     memset(vm->stack, 0, sizeof(vm->stack));
     memset(vm->call_stack, 0, sizeof(vm->call_stack));
+
     vm->current_inst = (Inst){0};
     memset(mem->rom, 0, sizeof(mem->rom));
     memset(mem->ram, 0, sizeof(mem->ram));
@@ -360,16 +374,20 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
                 if (inst.dest < MAX_REGS && inst.src < MAX_REGS) {
                     u32 addr = vm->regs[inst.src] + (u32)inst.imm;
                     if (addr + 3 < RAM_SIZE) {
-                        vm->regs[inst.dest] = *(u32 *)&mem->ram[addr];
+                    	u32 val;
+                    	memcpy(&val, &mem->ram[addr], sizeof(u32));
+                        vm->regs[inst.dest] = val;
                     }
                 }
                 break;
 
             case OP_LOAD_PC:
                 if (inst.dest < MAX_REGS) {
-                    u32 addr = (u32)inst.imm;
+                    u32 addr = (vm->PC * sizeof(Inst)) + (u32)inst.imm;
                     if (addr + 3 < RAM_SIZE) {
-                        vm->regs[inst.dest] = *(u32 *)&mem->ram[addr];
+                    	u32 val;
+                        memcpy(&val, &mem->ram[addr], sizeof(u32));
+                        vm->regs[inst.dest] = val;
                     }
                 }
                 break;
@@ -378,7 +396,7 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
                 if (inst.src < MAX_REGS && inst.dest < MAX_REGS) {
                     u32 addr = vm->regs[inst.dest] + (u32)inst.imm;
                     if (addr + 3 < RAM_SIZE) {
-                        *(u32 *)&mem->ram[addr] = vm->regs[inst.src];
+                        memcpy(&mem->ram[addr], &vm->regs[inst.src], sizeof(u32));
                     }
                 }
                 break;
@@ -394,7 +412,7 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
 
             case OP_LOADB_PC:
                 if (inst.dest < MAX_REGS) {
-                    u32 addr = (u32)inst.imm;
+                    u32 addr = (vm->PC * sizeof(Inst)) + (u32)inst.imm;
                     if (addr < RAM_SIZE) {
                         vm->regs[inst.dest] = mem->ram[addr];
                     }
@@ -433,7 +451,7 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
                 vm->is_running = 0;
                 printf("\n--- VM Halted ---\n");
                 for (int i = 0; i < MAX_REGS; i++) {
-                    printf("R%-2d: 0x%08X (%u)\n", i, vm->regs[i], vm->regs[i]);
+                   printf("R%-2d: 0x%08X (%u)\n", i, vm->regs[i], vm->regs[i]);
                 }
                 break;
 
@@ -446,8 +464,8 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
     return 0;
 }
 
-static inline int VM_export_stream(FILE *f, const Inst *program, size_t prog_len,
-                                  const void *data_bytes, size_t data_size) {
+static inline int VM_export_stream(VM *vm, FILE *f, const Inst *program, size_t prog_len,
+                                   const void *data_bytes, size_t data_size) {
     if (!f || !program) return -1;
 
     VMHeader header = {
@@ -458,21 +476,41 @@ static inline int VM_export_stream(FILE *f, const Inst *program, size_t prog_len
     };
 
     if (fwrite(&header, sizeof(VMHeader), 1, f) != 1) return -1;
+
+    fwrite(&vm->str_table.count, sizeof(uint32_t), 1, f);
+    for (uint32_t i = 0; i < g_str_table.count; i++) {
+        uint32_t len = (uint32_t)strlen(g_str_table.strings[i]);
+        fwrite(&len, sizeof(uint32_t), 1, f);
+        fwrite(g_str_table.strings[i], sizeof(char), len, f);
+    }
+
     if (fwrite(program, sizeof(Inst), prog_len, f) != prog_len) return -1;
     if (data_size > 0 && fwrite(data_bytes, 1, data_size, f) != data_size) return -1;
 
     return 0;
 }
 
-static inline int VM_import_stream(FILE *f, Memory *mem, size_t *out_prog_len, u32 actual_data_vaddr) {
+static inline int VM_import_stream(VM* vm, FILE *f, Memory *mem, size_t *out_prog_len, u32 actual_data_vaddr) {
     if (!f || !mem) return -1;
 
     VMHeader header;
     if (fread(&header, sizeof(VMHeader), 1, f) != 1) return -1;
     if (header.magic != VM_MAGIC) return -1;
 
-    if (fread(mem->rom, sizeof(Inst), header.inst_count, f) != header.inst_count) return -1;
+    uint32_t str_count = 0;
+    if (fread(&str_count, sizeof(uint32_t), 1, f) == 1) {
+        for (uint32_t i = 0; i < str_count; i++) {
+            uint32_t len = 0;
+            fread(&len, sizeof(uint32_t), 1, f);
+            char *s = malloc(len + 1);
+            fread(s, sizeof(char), len, f);
+            s[len] = '\0';
+            VM_register_str(vm,s);
+            free(s);
+        }
+    }
 
+    if (fread(mem->rom, sizeof(Inst), header.inst_count, f) != header.inst_count) return -1;
     if (header.data_size > 0) {
         if (fread(mem->ram + actual_data_vaddr, 1, header.data_size, f) != header.data_size) return -1;
     }
@@ -495,4 +533,75 @@ static inline int VM_run_file(const char *filename, Memory *mem, VM *vm, u32 loa
     return VM_run(vm, mem->rom, prog_len, mem);
 }
 
+static inline int VM_register_str(VM *vm, const char *str) {
+    if (!vm || !str) return -1;
+    if (vm->str_table.count >= MAX_STRING_TABLE_SIZE) return -1;
+    vm->str_table.strings[vm->str_table.count] = strdup(str);
+    return vm->str_table.count++;
+}
+
+static inline const char* VM_get_string(VM* vm, u32 id) {
+    if (id >= vm->str_table.count) return NULL;
+    return vm->str_table.strings[id];
+}
+
+static inline void VM_clear_strings(VM* vm) {
+    for (uint32_t i = 0; i < vm->str_table.count; i++) {
+        vm->str_table.strings[i] = NULL;
+    }
+    vm->str_table.count = 0;
+}
+
+static inline void VM_printf(VM *vm, Memory *mem, int reg_base, int arg_count, const char *fmt) {
+    if (!fmt) return;
+
+    int arg_idx = 0;
+    const char *p = fmt;
+
+    while (*p) {
+        if (*p != '%') {
+            putchar(*p++);
+            continue;
+        }
+
+        p++; // Skip '%'
+        if (*p == '%') {
+            putchar('%');
+            p++;
+            continue;
+        }
+
+        char spec[32];
+        int len = 0;
+        spec[len++] = '%';
+
+        while (*p && !strchr("diuoxXcspfeEgGaA", *p) && len < 30) {
+            spec[len++] = *p++;
+        }
+
+        if (*p) {
+            char conversion = *p++;
+            spec[len++] = conversion;
+            spec[len] = '\0';
+
+            if (arg_idx < arg_count && (reg_base + arg_idx) < MAX_REGS) {
+                u32 raw_val = vm->regs[reg_base + arg_idx++];
+
+                if (conversion == 's') {
+                    const char *str = VM_get_string(vm, raw_val);
+                    if (!str && raw_val < RAM_SIZE) {
+                        str = (const char *)&mem->ram[raw_val];
+                    }
+                    printf(spec, str ? str : "(null)");
+                } else if (conversion == 'c') {
+                    printf(spec, (char)raw_val);
+                } else {
+                    printf(spec, raw_val);
+                }
+            } else {
+                fputs(spec, stdout);
+            }
+        }
+    }
+}
 #endif // VM_H

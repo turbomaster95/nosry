@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
     if (argc > 2 && strcmp(argv[1], "-o") == 0) {
         FILE *f = fopen(argv[2], "wb");
         if (f) {
-            VM_export_stream(f, program, COUNTOF(program), 
+            VM_export_stream(vm, f, program, COUNTOF(program), 
                                hello_msg, sizeof(hello_msg));
             fclose(f);
             printf("Exported payload binary to %s\n", argv[2]);
@@ -102,12 +102,6 @@ int main(int argc, char **argv) {
 
     vm.syscall_handler = custom_syscalls; // Re-bind handler
     VM_run(&vm, program, COUNTOF(program), &mem);
-
-    // Dump Register State
-    printf("--- Final Register State ---\n");
-    for (int i = 0; i < MAX_REGS; i++) {
-        printf("R%-2d: 0x%08X (%u)\n", i, vm.regs[i], vm.regs[i]);
-    }
 
     return 0;
 }
