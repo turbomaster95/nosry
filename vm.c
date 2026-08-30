@@ -49,14 +49,6 @@ int main(int argc, char **argv) {
         INST_MOV(0, preferred_data_vaddr),  // R0 = 0x20
         INST_SYS(2),                        // sys_puts(R0)
 
-        INST_MOV(1, 0),                     // R1 = Accumulator
-        INST_MOV(2, 10),                    // R2 = Loop Counter
-
-        INST_ADD(1, 2),                     // R1 += R2
-        INST_SUBI(2, 1),                    // R2 -= 1
-        INST_CMPI(2, 0),                    // Compare R2 against 0
-        INST_JNZ(4),                        // Jump to PC 4 if R2 != 0
-
         INST_MOV(3, 0x00),                  // R3 = Address 0x00
         INST_STORE(1, 3, 0),                // RAM[R3] = R1 (55 / 0x37)
         INST_LOAD(0, 3, 0),                 // R0 = RAM[R3]
