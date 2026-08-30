@@ -24,57 +24,44 @@
 #endif
 
 #ifndef VM_VERIFY_SYSCALL_VALID
-#define VM_VERIFY_SYSCALL_VALID(id) \
-    ((id) >= 0 && (id) < VM_SYSCALL_MAX)
+#define VM_VERIFY_SYSCALL_VALID(id) ((id) >= 0 && (id) < VM_SYSCALL_MAX)
 #endif
 
 typedef enum VmProgramKind {
-    VM_PROGRAM_ENTRY = 0,     /* Must contain a reachable HALT */
-    VM_PROGRAM_FUNCTION = 1   /* May terminate with RET */
+    VM_PROGRAM_ENTRY = 0,
+    VM_PROGRAM_FUNCTION = 1
 } VmProgramKind;
 
 typedef enum VmVerifyError {
     VM_VERIFY_OK = 0,
-
     VM_VERIFY_NULL_PROGRAM,
     VM_VERIFY_EMPTY_PROGRAM,
     VM_VERIFY_PROGRAM_TOO_LARGE,
-
     VM_VERIFY_BAD_OPCODE,
     VM_VERIFY_BAD_DEST_REGISTER,
     VM_VERIFY_BAD_SRC_REGISTER,
-
     VM_VERIFY_BAD_ABSOLUTE_TARGET,
     VM_VERIFY_BAD_RELATIVE_TARGET,
     VM_VERIFY_BACKWARD_JUMP,
     VM_VERIFY_BACKWARD_CALL,
-
     VM_VERIFY_BAD_SYSCALL,
     VM_VERIFY_DIVIDE_BY_ZERO,
-
     VM_VERIFY_MEMORY_ACCESS_UNSUPPORTED,
-
     VM_VERIFY_NO_HALT,
-    VM_VERIFY_UNREACHABLE_HALT,
     VM_VERIFY_INVALID_RETURN,
-
-    VM_VERIFY_CALL_DEPTH_UNPROVEN,
-    VM_VERIFY_STEP_LIMIT_UNPROVEN
+    VM_VERIFY_CALL_DEPTH_UNPROVEN
 } VmVerifyError;
 
 typedef struct VerifierReport {
     bool valid;
     bool is_valid;
-
     size_t invalid_pc;
     VmVerifyError error;
     const char *reason;
 } VerifierReport;
 
-static inline VerifierReport
-vm_verify_error(size_t pc, VmVerifyError error, const char *reason)
-{
-    return (VerifierReport) {
+static inline VerifierReport vm_verify_error(size_t pc, VmVerifyError error, const char *reason) {
+    return (VerifierReport){
         .valid = false,
         .is_valid = false,
         .invalid_pc = pc,
@@ -83,10 +70,8 @@ vm_verify_error(size_t pc, VmVerifyError error, const char *reason)
     };
 }
 
-static inline VerifierReport
-vm_verify_success(void)
-{
-    return (VerifierReport) {
+static inline VerifierReport vm_verify_success(void) {
+    return (VerifierReport){
         .valid = true,
         .is_valid = true,
         .invalid_pc = 0,
@@ -95,79 +80,19 @@ vm_verify_success(void)
     };
 }
 
-static inline bool
-vm_verify_valid_reg(u8 reg)
-{
+static inline bool vm_verify_valid_reg(uint8_t reg) {
     return reg < MAX_REGS;
 }
 
-static inline bool
-vm_verify_is_absolute_branch(u8 opcode)
-{
-    switch (opcode) {
-        case OP_JMP:
-        case OP_JZ:
-        case OP_JNZ:
-        case OP_JLT:
-        case OP_JGT:
-        case OP_CALL:
-            return true;
-
-        default:
-            return false;
-    }
-}
-
-static inline bool
-vm_verify_is_relative_branch(u8 opcode)
-{
-    switch (opcode) {
-        case OP_JMPO:
-        case OP_CALLR:
-            return true;
-
-        default:
-            return false;
-    }
-}
-
-static inline bool
-vm_verify_is_conditional_branch(u8 opcode)
-{
-    switch (opcode) {
-        case OP_JZ:
-        case OP_JNZ:
-        case OP_JLT:
-        case OP_JGT:
-            return true;
-
-        default:
-            return false;
-    }
-}
-
-static inline bool
-vm_verify_is_call(u8 opcode)
-{
+static inline bool vm_verify_is_call(uint8_t opcode) {
     return opcode == OP_CALL || opcode == OP_CALLR;
 }
 
-static inline bool
-vm_verify_is_jump(u8 opcode)
-{
-    return opcode == OP_JMP ||
-           opcode == OP_JZ  ||
-           opcode == OP_JNZ ||
-           opcode == OP_JLT ||
-           opcode == OP_JGT ||
-           opcode == OP_JMPO;
+static inline bool vm_verify_is_unconditional_jump(uint8_t opcode) {
+    return opcode == OP_JMP || opcode == OP_JMPO;
 }
 
-static inline VerifierReport
-VM_verify_kind(const Inst *program,
-               size_t prog_len,
-               VmProgramKind kind)
-{
+static inline VerifierReport VM_verify_kind(const Inst *program, size_t prog_len, VmProgramKind kind) {
     if (program == NULL) {
         return vm_verify_error(
             0,
@@ -194,6 +119,7 @@ VM_verify_kind(const Inst *program,
 
     bool has_halt = false;
     bool has_ret = false;
+    size_t call_count = 0;
 
     for (size_t pc = 0; pc < prog_len; pc++) {
         const Inst inst = program[pc];
@@ -239,8 +165,7 @@ VM_verify_kind(const Inst *program,
                     );
                 }
 
-                if (inst.imm < 0 ||
-                    (u64)inst.imm >= (u64)RAM_SIZE) {
+                if (inst.imm < 0 || (uint64_t)inst.imm >= (uint64_t)RAM_SIZE) {
                     return vm_verify_error(
                         pc,
                         VM_VERIFY_BAD_RELATIVE_TARGET,
@@ -290,7 +215,7 @@ VM_verify_kind(const Inst *program,
                 }
 
 #if !VM_VERIFY_ALLOW_REGISTER_MEMORY
-                if (inst.opcode == OP_LOAD  ||
+                if (inst.opcode == OP_LOAD ||
                     inst.opcode == OP_STORE ||
                     inst.opcode == OP_LOADB ||
                     inst.opcode == OP_STOREB) {
@@ -310,7 +235,7 @@ VM_verify_kind(const Inst *program,
             case OP_JGT:
             case OP_CALL:
                 if (inst.imm < 0 ||
-                    (u64)inst.imm >= (u64)prog_len) {
+                    (uint64_t)inst.imm >= (uint64_t)prog_len) {
                     return vm_verify_error(
                         pc,
                         VM_VERIFY_BAD_ABSOLUTE_TARGET,
@@ -319,25 +244,29 @@ VM_verify_kind(const Inst *program,
                 }
 
                 if ((size_t)inst.imm <= pc) {
-                    return vm_verify_error(
-                        pc,
-                        vm_verify_is_call(inst.opcode)
-                            ? VM_VERIFY_BACKWARD_CALL
-                            : VM_VERIFY_BACKWARD_JUMP,
-                        vm_verify_is_call(inst.opcode)
-                            ? "Backward or recursive call is not allowed"
-                            : "Backward jump or loop is not allowed"
-                    );
+                    if (inst.opcode == OP_CALL) {
+                        return vm_verify_error(
+                            pc,
+                            VM_VERIFY_BACKWARD_CALL,
+                            "Backward or recursive call is not allowed"
+                        );
+                    }
+
+                    if (inst.opcode == OP_JMP) {
+                        return vm_verify_error(
+                            pc,
+                            VM_VERIFY_BACKWARD_JUMP,
+                            "Backward unconditional jump is not allowed"
+                        );
+                    }
                 }
                 break;
 
             case OP_JMPO:
             case OP_CALLR: {
-                const i64 target =
-                    (i64)pc + 1 + (i64)inst.imm;
+                int64_t target = (int64_t)pc + 1 + (int64_t)inst.imm;
 
-                if (target < 0 ||
-                    target >= (i64)prog_len) {
+                if (target < 0 || target >= (int64_t)prog_len) {
                     return vm_verify_error(
                         pc,
                         VM_VERIFY_BAD_RELATIVE_TARGET,
@@ -345,16 +274,22 @@ VM_verify_kind(const Inst *program,
                     );
                 }
 
-                if (target <= (i64)pc) {
-                    return vm_verify_error(
-                        pc,
-                        vm_verify_is_call(inst.opcode)
-                            ? VM_VERIFY_BACKWARD_CALL
-                            : VM_VERIFY_BACKWARD_JUMP,
-                        vm_verify_is_call(inst.opcode)
-                            ? "Backward or recursive call is not allowed"
-                            : "Backward jump or loop is not allowed"
-                    );
+                if (target <= (int64_t)pc) {
+                    if (inst.opcode == OP_CALLR) {
+                        return vm_verify_error(
+                            pc,
+                            VM_VERIFY_BACKWARD_CALL,
+                            "Backward or recursive call is not allowed"
+                        );
+                    }
+
+                    if (inst.opcode == OP_JMPO) {
+                        return vm_verify_error(
+                            pc,
+                            VM_VERIFY_BACKWARD_JUMP,
+                            "Backward unconditional jump is not allowed"
+                        );
+                    }
                 }
                 break;
             }
@@ -384,6 +319,18 @@ VM_verify_kind(const Inst *program,
                 "Immediate division by zero"
             );
         }
+
+        if (vm_verify_is_call(inst.opcode)) {
+            call_count++;
+
+            if (call_count > VM_VERIFY_MAX_CALL_DEPTH) {
+                return vm_verify_error(
+                    pc,
+                    VM_VERIFY_CALL_DEPTH_UNPROVEN,
+                    "Maximum call depth cannot be proven"
+                );
+            }
+        }
     }
 
     if (kind == VM_PROGRAM_ENTRY && !has_halt) {
@@ -402,29 +349,11 @@ VM_verify_kind(const Inst *program,
         );
     }
 
-    size_t call_count = 0;
-
-    for (size_t pc = 0; pc < prog_len; pc++) {
-        if (vm_verify_is_call(program[pc].opcode)) {
-            call_count++;
-
-            if (call_count > VM_VERIFY_MAX_CALL_DEPTH) {
-                return vm_verify_error(
-                    pc,
-                    VM_VERIFY_CALL_DEPTH_UNPROVEN,
-                    "Maximum call depth cannot be proven"
-                );
-            }
-        }
-    }
-
     return vm_verify_success();
 }
 
-static inline VerifierReport
-VM_verify(const Inst *program, size_t prog_len)
-{
+static inline VerifierReport VM_verify(const Inst *program, size_t prog_len) {
     return VM_verify_kind(program, prog_len, VM_PROGRAM_ENTRY);
 }
 
-#endif /* VERIFIER_H */
+#endif
