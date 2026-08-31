@@ -253,21 +253,21 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
 
             case OP_DIV:
                 if (inst.dest < MAX_REGS && inst.src < MAX_REGS) {
-                    if (vm->regs[inst.src] == 0) { printf("Fault: Div by 0\n"); vm->is_running = 0; break; }
+                    if (vm->regs[inst.src] == 0) { PRINTF("Fault: Div by 0\n"); vm->is_running = 0; break; }
                     vm->regs[inst.dest] /= vm->regs[inst.src];
                 }
                 break;
 
             case OP_DIVI:
                 if (inst.dest < MAX_REGS) {
-                    if (inst.imm == 0) { printf("Fault: Div by 0\n"); vm->is_running = 0; break; }
+                    if (inst.imm == 0) { PRINTF("Fault: Div by 0\n"); vm->is_running = 0; break; }
                     vm->regs[inst.dest] /= inst.imm;
                 }
                 break;
 
             case OP_MOD:
                 if (inst.dest < MAX_REGS && inst.src < MAX_REGS) {
-                    if (vm->regs[inst.src] == 0) { printf("Fault: Mod by 0\n"); vm->is_running = 0; break; }
+                    if (vm->regs[inst.src] == 0) { PRINTF("Fault: Mod by 0\n"); vm->is_running = 0; break; }
                     vm->regs[inst.dest] %= vm->regs[inst.src];
                 }
                 break;
@@ -372,7 +372,7 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
                     vm->call_stack[--vm->CSP] = vm->PC;
                     vm->PC = inst.imm;
                 } else {
-                    printf("Fault: Call Stack Overflow\n");
+                    PRINTF("Fault: Call Stack Overflow\n");
                     vm->is_running = 0;
                 }
                 break;
@@ -388,7 +388,7 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
                 if (vm->CSP < MAX_STACK_SIZE) {
                     vm->PC = vm->call_stack[vm->CSP++];
                 } else {
-                    printf("Fault: Call Stack Underflow\n");
+                    PRINTF("Fault: Call Stack Underflow\n");
                     vm->is_running = 0;
                 }
                 break;
@@ -459,11 +459,11 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
                         case 1: putchar((char)vm->regs[0]); break;
                         case 2:
                             if (vm->regs[0] < RAM_SIZE) {
-                                printf("%s", VM_get_string(vm, vm->regs[0]));
+                                PRINTF("%s", VM_get_string(vm, vm->regs[0]));
                             }
                             break;
                         default:
-                            printf("Fault: Unhandled Syscall %d (No handler set)\n", inst.imm);
+                            PRINTF("Fault: Unhandled Syscall %d (No handler set)\n", inst.imm);
                             vm->is_running = 0;
                             break;
                     }
@@ -472,14 +472,14 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
 
             case OP_HALT:
                 vm->is_running = 0;
-                printf("\n--- VM Halted ---\n");
+                PRINTF("\n--- VM Halted ---\n");
                 for (int i = 0; i < MAX_REGS; i++) {
-                   printf("R%-2d: 0x%08X (%u)\n", i, vm->regs[i], vm->regs[i]);
+                   PRINTF("R%-2d: 0x%08X (%u)\n", i, vm->regs[i], vm->regs[i]);
                 }
                 break;
 
             default:
-                printf("Fault: Invalid Opcode 0x%02X at PC=0x%04X\n", inst.opcode, vm->PC - 1);
+                PRINTF("Fault: Invalid Opcode 0x%02X at PC=0x%04X\n", inst.opcode, vm->PC - 1);
                 vm->is_running = 0;
                 return -1;
         }
@@ -596,14 +596,14 @@ static inline void VM_printf(VM *vm, Memory *mem, int reg_base, int arg_count, c
                     if (!str && raw_val < RAM_SIZE) {
                         str = (const char *)&mem->ram[raw_val];
                     }
-                    printf(spec, str ? str : "(null)");
+                    PRINTF(spec, str ? str : "(null)");
                 } else if (conversion == 'c') {
-                    printf(spec, (char)raw_val);
+                    PRINTF(spec, (char)raw_val);
                 } else {
-                    printf(spec, raw_val);
+                    PRINTF(spec, raw_val);
                 }
             } else {
-                PUTSFILE(spec, stdout);
+		PRINTF("%s", spec);
             }
         }
     }

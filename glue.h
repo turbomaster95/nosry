@@ -41,5 +41,6 @@ typedef int64_t  i64;
 #define PUTSFILE   fputs
 #define GLUEMALLOC malloc
 #define GLUEFREE   free
+#define PRINTF     printf
 
 #endif // VMGLUE_H
