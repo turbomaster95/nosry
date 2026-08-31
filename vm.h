@@ -487,7 +487,7 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
     return 0;
 }
 
-static inline int VM_export_stream(VM *vm, FILE *f, const Inst *program, size_t prog_len,
+static inline int VM_export_stream(VM *vm, FILESTRUCT *f, const Inst *program, size_t prog_len,
                                    const void *data_bytes, size_t data_size) {
     if (!f || !program) return -1;
 
@@ -498,44 +498,44 @@ static inline int VM_export_stream(VM *vm, FILE *f, const Inst *program, size_t 
         .data_size = (u32)data_size
     };
 
-    if (fwrite(&header, sizeof(VMHeader), 1, f) != 1) return -1;
+    if (WRITFILE(&header, sizeof(VMHeader), 1, f) != 1) return -1;
 
-    fwrite(&vm->str_table.count, sizeof(u32), 1, f);
+    WRITFILE(&vm->str_table.count, sizeof(u32), 1, f);
     for (u32 i = 0; i < vm->str_table.count; i++) {
         u32 len = (u32)strlen(vm->str_table.strings[i]);
-        fwrite(&len, sizeof(u32), 1, f);
-        fwrite(vm->str_table.strings[i], sizeof(char), len, f);
+        WRITFILE(&len, sizeof(u32), 1, f);
+        WRITFILE(vm->str_table.strings[i], sizeof(char), len, f);
     }
 
-    if (fwrite(program, sizeof(Inst), prog_len, f) != prog_len) return -1;
-    if (data_size > 0 && fwrite(data_bytes, 1, data_size, f) != data_size) return -1;
+    if (WRITFILE(program, sizeof(Inst), prog_len, f) != prog_len) return -1;
+    if (data_size > 0 && WRITFILE(data_bytes, 1, data_size, f) != data_size) return -1;
 
     return 0;
 }
 
-static inline int VM_import_stream(VM* vm, FILE *f, Memory *mem, size_t *out_prog_len, u32 actual_data_vaddr) {
+static inline int VM_import_stream(VM* vm, FILESTRUCT *f, Memory *mem, size_t *out_prog_len, u32 actual_data_vaddr) {
     if (!f || !mem) return -1;
 
     VMHeader header;
-    if (fread(&header, sizeof(VMHeader), 1, f) != 1) return -1;
+    if (READFILE(&header, sizeof(VMHeader), 1, f) != 1) return -1;
     if (header.magic != VM_MAGIC || header.magic != 0x4E4F5259) return -1; // 0x4E4F5259 (NORY) is a backup one for all nosry-bytecode to run universally!
 
     u32 str_count = 0;
-    if (fread(&str_count, sizeof(u32), 1, f) == 1) {
+    if (READFILE(&str_count, sizeof(u32), 1, f) == 1) {
         for (u32 i = 0; i < str_count; i++) {
             u32 len = 0;
-            fread(&len, sizeof(u32), 1, f);
-            char *s = malloc(len + 1);
-            fread(s, sizeof(char), len, f);
+            READFILE(&len, sizeof(u32), 1, f);
+            char *s = GLUEMALLOC(len + 1);
+            READFILE(s, sizeof(char), len, f);
             s[len] = '\0';
             VM_register_str(vm,s);
-            free(s);
+            GLUEFREE(s);
         }
     }
 
-    if (fread(mem->rom, sizeof(Inst), header.inst_count, f) != header.inst_count) return -1;
+    if (READFILE(mem->rom, sizeof(Inst), header.inst_count, f) != header.inst_count) return -1;
     if (header.data_size > 0) {
-        if (fread(mem->ram + actual_data_vaddr, 1, header.data_size, f) != header.data_size) return -1;
+        if (READFILE(mem->ram + actual_data_vaddr, 1, header.data_size, f) != header.data_size) return -1;
     }
 
     if (out_prog_len) *out_prog_len = header.inst_count;
@@ -543,15 +543,15 @@ static inline int VM_import_stream(VM* vm, FILE *f, Memory *mem, size_t *out_pro
 }
 
 static inline int VM_run_file(const char *filename, Memory *mem, VM *vm, u32 load_ram_vaddr) {
-    FILE *f = fopen(filename, "rb");
+    FILESTRUCT *f = OPENFILE(filename, "rb");
     if (!f) return -1;
 
     size_t prog_len = 0;
     if (VM_import_stream(vm, f, mem, &prog_len, load_ram_vaddr) != 0) {
-        fclose(f);
+        CLOSFILE(f);
         return -1;
     }
-    fclose(f);
+    CLOSFILE(f);
 
     return VM_run(vm, mem->rom, prog_len, mem);
 }
@@ -603,7 +603,7 @@ static inline void VM_printf(VM *vm, Memory *mem, int reg_base, int arg_count, c
                     printf(spec, raw_val);
                 }
             } else {
-                fputs(spec, stdout);
+                PUTSFILE(spec, stdout);
             }
         }
     }
