@@ -518,7 +518,7 @@ static inline int VM_import_stream(VM* vm, FILESTRUCT *f, Memory *mem, size_t *o
 
     VMHeader header;
     if (READFILE(&header, sizeof(VMHeader), 1, f) != 1) return -1;
-    if (header.magic != VM_MAGIC || header.magic != 0x4E4F5259) return -1; // 0x4E4F5259 (NORY) is a backup one for all nosry-bytecode to run universally!
+    if (header.magic != VM_MAGIC && header.magic != 0x4E4F5259) return -1; // 0x4E4F5259 (NORY) is a backup one for all nosry-bytecode to run universally!
 
     u32 str_count = 0;
     if (READFILE(&str_count, sizeof(u32), 1, f) == 1) {
