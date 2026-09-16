@@ -31,6 +31,8 @@
 #define INST_NOT(r_dst)               ((Inst){ .opcode = OP_NOT, .dest = (r_dst) })
 #define INST_SHR(r_dst, off)          ((Inst){ .opcode = OP_SHR, .dest = (r_dst), .imm = (off) })
 #define INST_SHL(r_dst, off)          ((Inst){ .opcode = OP_SHL, .dest = (r_dst), .imm = (off) })
+#define INST_SHRR(r_dst, r_src)       ((Inst){ .opcode = OP_SHRR, .dest = (r_dst), .src = (r_src) })
+#define INST_SHLR(r_dst, r_src)	      ((Inst){ .opcode = OP_SHLR, .dest = (r_dst), .src = (r_src) })
 #define INST_CMP(r_dst, r_src)        ((Inst){ .opcode = OP_CMP, .dest = (r_dst), .src = (r_src) })
 #define INST_CMPI(r_dst, immv)        ((Inst){ .opcode = OP_CMPI, .dest = (r_dst), .imm = (immv) })
 #define INST_JMP(imm_addr)            ((Inst){ .opcode = OP_JMP, .imm = (imm_addr) })
@@ -77,6 +79,8 @@ enum VMOpcodes {
     OP_NOT,       // Reg = ~Reg
     OP_SHR,       // Reg >>= Imm
     OP_SHL,       // Reg <<= Imm
+    OP_SHRR,       // Reg >>= Reg
+    OP_SHLR,       // Reg <<= Reg
     OP_CMP,       // Compare Reg, Reg
     OP_CMPI,      // Compare Reg, Imm
     OP_JMP,       // Absolute Jump
@@ -310,6 +314,22 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
             case OP_SHL:
                 if (inst.dest < MAX_REGS) {
                     vm->regs[inst.dest] <<= inst.imm;
+                    VM_update_flags(vm, (i32)vm->regs[inst.dest]);
+                }
+                break;
+
+            case OP_SHRR:
+                if (inst.dest < MAX_REGS && inst.src < MAX_REGS) {
+                    uint32_t shift_amt = vm->regs[inst.src] & 31;
+                    vm->regs[inst.dest] >>= shift_amt;
+                    VM_update_flags(vm, (i32)vm->regs[inst.dest]);
+                }
+                break;
+
+            case OP_SHLR:
+                if (inst.dest < MAX_REGS && inst.src < MAX_REGS) {
+                    uint32_t shift_amt = vm->regs[inst.src] & 31;
+                    vm->regs[inst.dest] <<= shift_amt;
                     VM_update_flags(vm, (i32)vm->regs[inst.dest]);
                 }
                 break;
