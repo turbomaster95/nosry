@@ -41,6 +41,10 @@
 #define INST_JNZ(imm_addr)            ((Inst){ .opcode = OP_JNZ, .imm = (imm_addr) })
 #define INST_JLT(imm_addr)            ((Inst){ .opcode = OP_JLT, .imm = (imm_addr) })
 #define INST_JGT(imm_addr)            ((Inst){ .opcode = OP_JGT, .imm = (imm_addr) })
+#define INST_JZO(off_addr)            ((Inst){ .opcode = OP_JZO, .imm = (off_addr) })
+#define INST_JNZO(off_addr)           ((Inst){ .opcode = OP_JNZO, .imm = (off_addr) })
+#define INST_JLTO(off_addr)           ((Inst){ .opcode = OP_JLTO, .imm = (off_addr) })
+#define INST_JGTO(off_addr)           ((Inst){ .opcode = OP_JGTO, .imm = (off_addr) })
 #define INST_PUSH(r_src)              ((Inst){ .opcode = OP_PUSH, .src = (r_src) })
 #define INST_PUSHI(immv)              ((Inst){ .opcode = OP_PUSHI, .imm = (immv) })
 #define INST_POP(r_dst)               ((Inst){ .opcode = OP_POP, .dest = (r_dst) })
@@ -79,8 +83,8 @@ enum VMOpcodes {
     OP_NOT,       // Reg = ~Reg
     OP_SHR,       // Reg >>= Imm
     OP_SHL,       // Reg <<= Imm
-    OP_SHRR,       // Reg >>= Reg
-    OP_SHLR,       // Reg <<= Reg
+    OP_SHRR,      // Reg >>= Reg
+    OP_SHLR,      // Reg <<= Reg
     OP_CMP,       // Compare Reg, Reg
     OP_CMPI,      // Compare Reg, Imm
     OP_JMP,       // Absolute Jump
@@ -89,6 +93,10 @@ enum VMOpcodes {
     OP_JNZ,       // Jump if Not Zero
     OP_JLT,       // Jump if Less Than
     OP_JGT,       // Jump if Greater Than
+    OP_JZO,       // Jump if Zero (PC-relative)
+    OP_JNZO,      // Jump if Not Zero (PC-relative)
+    OP_JLTO,      // Jump if Less Than (PC-relative)
+    OP_JGTO,      // Jump if Greater Than (PC-relative)
     OP_PUSH,      // Stack Push Reg
     OP_PUSHI,     // Stack Push Imm
     OP_POP,       // Stack Pop Reg
@@ -370,6 +378,22 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
 
             case OP_JGT:
                 if (!(vm->flags & (FLAG_ZERO | FLAG_NEGATIVE))) vm->PC = inst.imm;
+                break;
+
+            case OP_JZO:
+                if (vm->flags & FLAG_ZERO) vm->PC += inst.imm;
+                break;
+
+            case OP_JNZO:
+                if (!(vm->flags & FLAG_ZERO)) vm->PC += inst.imm;
+                break;
+
+            case OP_JLTO:
+                if (vm->flags & FLAG_NEGATIVE) vm->PC += inst.imm;
+                break;
+
+            case OP_JGTO:
+                if (!(vm->flags & (FLAG_ZERO | FLAG_NEGATIVE))) vm->PC += inst.imm;
                 break;
 
             case OP_PUSH:
