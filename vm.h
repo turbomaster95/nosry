@@ -16,6 +16,7 @@
 #define INST_NOP()                    ((Inst){ .opcode = OP_NOP })
 #define INST_MOV(r_dst, immv)         ((Inst){ .opcode = OP_MOV, .dest = (r_dst), .imm = (immv) })
 #define INST_MOVR(r_dst, r_src)       ((Inst){ .opcode = OP_MOVR, .dest = (r_dst), .src = (r_src) })
+#define INST_MOVPC(r_dst)             ((Inst){ .opcode = OP_MOVPC, .dest = (r_dst) })
 #define INST_ADD(r_dst, r_src)        ((Inst){ .opcode = OP_ADD, .dest = (r_dst), .src = (r_src) })
 #define INST_ADDI(r_dst, immv)        ((Inst){ .opcode = OP_ADDI, .dest = (r_dst), .imm = (immv) })
 #define INST_SUB(r_dst, r_src)        ((Inst){ .opcode = OP_SUB, .dest = (r_dst), .src = (r_src) })
@@ -68,6 +69,7 @@ enum VMOpcodes {
     OP_NOP = 0x00,
     OP_MOV,       // Reg = Imm
     OP_MOVR,      // Reg = Reg
+    OP_MOVPC,     // Reg = PC
     OP_ADD,       // Reg += Reg
     OP_ADDI,      // Reg += Imm
     OP_SUB,       // Reg -= Reg
@@ -224,6 +226,10 @@ static inline int VM_run(VM *vm, const Inst *program, size_t progsize, Memory *m
             case OP_MOVR:
                 if (inst.dest < MAX_REGS && inst.src < MAX_REGS)
                     vm->regs[inst.dest] = vm->regs[inst.src];
+                break;
+
+            case OP_MOVPC:
+                if (inst.dest < MAX_REGS) vm->regs[inst.dest] = vm->PC;
                 break;
 
             case OP_ADD:
