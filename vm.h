@@ -178,7 +178,6 @@ static inline int VM_register_str(VM *vm, const char *str) {
     return (int)id;
 }
 
-
 static inline void VM_clear_strings(VM *vm) {
     if (!vm) return;
 
@@ -190,14 +189,14 @@ static inline void VM_clear_strings(VM *vm) {
     vm->str_table.count = 0;
 }
 
-
-static inline void VM_clear_strings(VM* vm) {
-    for (u32 i = 0; i < vm->str_table.count; i++) {
-
-        vm->str_table.strings[i] = NULL;
+static inline const char *VM_get_string(const VM *vm, u32 id) {
+    if (!vm || id >= vm->str_table.count) {
+        return NULL;
     }
-    vm->str_table.count = 0;
+
+    return vm->str_table.strings[id];
 }
+
 
 static inline void VM_reset(VM *vm, Memory *mem) {
     if (!vm || !mem) return;
