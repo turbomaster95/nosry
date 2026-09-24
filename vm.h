@@ -161,18 +161,39 @@ typedef struct __attribute__((packed)) VMHeader {
 
 static inline int VM_register_str(VM *vm, const char *str) {
     if (!vm || !str) return -1;
-    if (vm->str_table.count >= MAX_STRING_TABLE_SIZE) return -1;
-    vm->str_table.strings[vm->str_table.count] = strdup(str);
-    return vm->str_table.count++;
+
+    if (vm->str_table.count >= MAX_STRING_TABLE_SIZE) {
+        return -1;
+    }
+
+    char *copy = strdup(str);
+    if (!copy) {
+        return -1;
+    }
+
+    u32 id = vm->str_table.count;
+    vm->str_table.strings[id] = copy;
+    vm->str_table.count++;
+
+    return (int)id;
 }
 
-static inline const char* VM_get_string(VM* vm, u32 id) {
-    if (id >= vm->str_table.count) return NULL;
-    return vm->str_table.strings[id];
+
+static inline void VM_clear_strings(VM *vm) {
+    if (!vm) return;
+
+    for (u32 i = 0; i < vm->str_table.count; i++) {
+        free(vm->str_table.strings[i]);
+        vm->str_table.strings[i] = NULL;
+    }
+
+    vm->str_table.count = 0;
 }
+
 
 static inline void VM_clear_strings(VM* vm) {
     for (u32 i = 0; i < vm->str_table.count; i++) {
+
         vm->str_table.strings[i] = NULL;
     }
     vm->str_table.count = 0;
