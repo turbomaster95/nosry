@@ -5,6 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// By default, nosry is a 32-bit VM. to make it 64-bit, you can uncomment this line
+// #define NOSRY_64BIT
+
 // Unsigned Integers
 typedef uint8_t  u8;
 typedef uint16_t u16;
