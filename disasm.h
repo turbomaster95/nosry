@@ -17,7 +17,7 @@ void VM_disassemble_inst(const Inst *inst, u32 pc, char *buf, size_t buf_size) {
             snprintf(buf, buf_size, "NOP");
             break;
         case OP_MOV:
-            snprintf(buf, buf_size, "MOV      R%u, %d", inst->dest, inst->imm);
+            snprintf(buf, buf_size, "MOV      R%u, %ld", inst->dest, inst->imm);
             break;
         case OP_MOVR:
             snprintf(buf, buf_size, "MOVR     R%u, R%u", inst->dest, inst->src);
@@ -26,25 +26,25 @@ void VM_disassemble_inst(const Inst *inst, u32 pc, char *buf, size_t buf_size) {
             snprintf(buf, buf_size, "ADD      R%u, R%u", inst->dest, inst->src);
             break;
         case OP_ADDI:
-            snprintf(buf, buf_size, "ADDI     R%u, %d", inst->dest, inst->imm);
+            snprintf(buf, buf_size, "ADDI     R%u, %ld", inst->dest, inst->imm);
             break;
         case OP_SUB:
             snprintf(buf, buf_size, "SUB      R%u, R%u", inst->dest, inst->src);
             break;
         case OP_SUBI:
-            snprintf(buf, buf_size, "SUBI     R%u, %d", inst->dest, inst->imm);
+            snprintf(buf, buf_size, "SUBI     R%u, %ld", inst->dest, inst->imm);
             break;
         case OP_MUL:
             snprintf(buf, buf_size, "MUL      R%u, R%u", inst->dest, inst->src);
             break;
         case OP_MULI:
-            snprintf(buf, buf_size, "MULI     R%u, %d", inst->dest, inst->imm);
+            snprintf(buf, buf_size, "MULI     R%u, %ld", inst->dest, inst->imm);
             break;
         case OP_DIV:
             snprintf(buf, buf_size, "DIV      R%u, R%u", inst->dest, inst->src);
             break;
         case OP_DIVI:
-            snprintf(buf, buf_size, "DIVI     R%u, %d", inst->dest, inst->imm);
+            snprintf(buf, buf_size, "DIVI     R%u, %ld", inst->dest, inst->imm);
             break;
         case OP_MOD:
             snprintf(buf, buf_size, "MOD      R%u, R%u", inst->dest, inst->src);
@@ -62,73 +62,73 @@ void VM_disassemble_inst(const Inst *inst, u32 pc, char *buf, size_t buf_size) {
             snprintf(buf, buf_size, "NOT      R%u", inst->dest);
             break;
         case OP_SHR:
-            snprintf(buf, buf_size, "SHR      R%u, %d", inst->dest, inst->imm);
+            snprintf(buf, buf_size, "SHR      R%u, %ld", inst->dest, inst->imm);
             break;
         case OP_SHL:
-            snprintf(buf, buf_size, "SHL      R%u, %d", inst->dest, inst->imm);
+            snprintf(buf, buf_size, "SHL      R%u, %ld", inst->dest, inst->imm);
             break;
         case OP_CMP:
             snprintf(buf, buf_size, "CMP      R%u, R%u", inst->dest, inst->src);
             break;
         case OP_CMPI:
-            snprintf(buf, buf_size, "CMPI     R%u, %d", inst->dest, inst->imm);
+            snprintf(buf, buf_size, "CMPI     R%u, %ld", inst->dest, inst->imm);
             break;
         case OP_JMP:
-            snprintf(buf, buf_size, "JMP      0x%04X", inst->imm);
+            snprintf(buf, buf_size, "JMP      0x%04lX", inst->imm);
             break;
         case OP_JMPO:
-            snprintf(buf, buf_size, "JMPO     %+d (-> 0x%04X)", inst->imm, pc + 1 + inst->imm);
+            snprintf(buf, buf_size, "JMPO     %+ld (-> 0x%04lX)", inst->imm, pc + 1 + inst->imm);
             break;
         case OP_JZ:
-            snprintf(buf, buf_size, "JZ       0x%04X", inst->imm);
+            snprintf(buf, buf_size, "JZ       0x%04lX", inst->imm);
             break;
         case OP_JNZ:
-            snprintf(buf, buf_size, "JNZ      0x%04X", inst->imm);
+            snprintf(buf, buf_size, "JNZ      0x%04lX", inst->imm);
             break;
         case OP_JLT:
-            snprintf(buf, buf_size, "JLT      0x%04X", inst->imm);
+            snprintf(buf, buf_size, "JLT      0x%04lX", inst->imm);
             break;
         case OP_JGT:
-            snprintf(buf, buf_size, "JGT      0x%04X", inst->imm);
+            snprintf(buf, buf_size, "JGT      0x%04lX", inst->imm);
             break;
         case OP_PUSH:
             snprintf(buf, buf_size, "PUSH     R%u", inst->src);
             break;
         case OP_PUSHI:
-            snprintf(buf, buf_size, "PUSHI    %d", inst->imm);
+            snprintf(buf, buf_size, "PUSHI    %ld", inst->imm);
             break;
         case OP_POP:
             snprintf(buf, buf_size, "POP      R%u", inst->dest);
             break;
         case OP_CALL:
-            snprintf(buf, buf_size, "CALL     0x%04X", inst->imm);
+            snprintf(buf, buf_size, "CALL     0x%04lX", inst->imm);
             break;
         case OP_CALLR:
-            snprintf(buf, buf_size, "CALLR    %+d", inst->imm);
+            snprintf(buf, buf_size, "CALLR    %+ld", inst->imm);
             break;
         case OP_RET:
             snprintf(buf, buf_size, "RET");
             break;
         case OP_LOAD:
-            snprintf(buf, buf_size, "LOAD     R%u, [R%u + %d]", inst->dest, inst->src, inst->imm);
+            snprintf(buf, buf_size, "LOAD     R%u, [R%u + %ld]", inst->dest, inst->src, inst->imm);
             break;
         case OP_LOAD_PC:
-            snprintf(buf, buf_size, "LOAD_PC  R%u, [PC + %d]", inst->dest, inst->imm);
+            snprintf(buf, buf_size, "LOAD_PC  R%u, [PC + %ld]", inst->dest, inst->imm);
             break;
         case OP_STORE:
-            snprintf(buf, buf_size, "STORE    [R%u + %d], R%u", inst->dest, inst->imm, inst->src);
+            snprintf(buf, buf_size, "STORE    [R%u + %ld], R%u", inst->dest, inst->imm, inst->src);
             break;
         case OP_LOADB:
-            snprintf(buf, buf_size, "LOADB    R%u, [R%u + %d]", inst->dest, inst->src, inst->imm);
+            snprintf(buf, buf_size, "LOADB    R%u, [R%u + %ld]", inst->dest, inst->src, inst->imm);
             break;
         case OP_LOADB_PC:
-            snprintf(buf, buf_size, "LOADB_PC R%u, [PC + %d]", inst->dest, inst->imm);
+            snprintf(buf, buf_size, "LOADB_PC R%u, [PC + %ld]", inst->dest, inst->imm);
             break;
         case OP_STOREB:
-            snprintf(buf, buf_size, "STOREB   [R%u + %d], R%u", inst->dest, inst->imm, inst->src);
+            snprintf(buf, buf_size, "STOREB   [R%u + %ld], R%u", inst->dest, inst->imm, inst->src);
             break;
         case OP_SYS:
-            snprintf(buf, buf_size, "SYS      0x%X", inst->imm);
+            snprintf(buf, buf_size, "SYS      0x%lX", inst->imm);
             break;
         case OP_HALT:
             snprintf(buf, buf_size, "HALT");
